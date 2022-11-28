@@ -34,7 +34,7 @@ ADDRESS_0       = 0x10   # (CSB:0 SDO:0)
 ADDRESS_1       = 0x11   # (CSB:0 SDO:1)
 ADDRESS_2       = 0x12   # (CSB:1 SDO:0)
 ADDRESS_3       = 0x13   # (CSB:1 SDO:1) default i2c address
-bmm150 = DFRobot_bmm150_I2C(I2C_BUS, ADDRESS_3)
+bmm150 = DFRobot_bmm150_I2C(I2C_BUS, ADDRESS_0)
 
 def setup():
   while bmm150.ERROR == bmm150.sensor_init():
@@ -83,13 +83,13 @@ def setup():
   
 def loop():
   geomagnetic = bmm150.get_geomagnetic()
-  print("mag x = %d ut"%geomagnetic[0]) 
-  print("mag y = %d ut"%geomagnetic[1]) 
-  print("mag z = %d ut"%geomagnetic[2]) 
+  # print("mag x = %d ut"%geomagnetic[0]) 
+  # print("mag y = %d ut"%geomagnetic[1]) 
+  # print("mag z = %d ut"%geomagnetic[2])
   degree = bmm150.get_compass_degree()
-  print("the angle between the pointing direction and north (counterclockwise) is: %.2f "%degree) 
-  print("")
-  time.sleep(0.1)
+  print("the angle between the pointing direction and north (counterclockwise) is: %.2f  \r"%degree, end='')
+  # print("")
+  time.sleep(0.3)
 
 if __name__ == "__main__":
   setup()

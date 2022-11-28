@@ -11,14 +11,8 @@
 '''
 import serial
 import time
-import smbus
-import spidev
 import os
 import math
-import RPi.GPIO as GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-
 
 
 class trim_register:
@@ -147,7 +141,6 @@ class DFRobot_bmm150(object):
   __threshold_mode = 2
   def __init__(self, bus):
     if bus != 0:
-      self.i2cbus = smbus.SMBus(bus)
       self.__i2c_spi = self.I2C_MODE
     else:
       self.__i2c_spi = self.SPI_MODE
@@ -159,6 +152,7 @@ class DFRobot_bmm150(object):
               -1 is init failed
     '''
     self.set_power_bit(self.ENABLE_POWER)
+    time.sleep(0.003)
     chip_id = self.get_chip_id()
     if chip_id == self.CHIP_ID_VALUE:
       self.get_trim_data()
@@ -447,7 +441,7 @@ class DFRobot_bmm150(object):
       @       [1] The geomagnetic data at y-axis
       @       [2] The geomagnetic data at z-axis
     '''
-    rslt = self.read_reg(self.REG_DATA_X_LSB, 8)
+    rslt = list(self.read_reg(self.REG_DATA_X_LSB, 8))
     rslt[1] = self.uint8_to_int8(rslt[1])
     rslt[3] = self.uint8_to_int8(rslt[3])
     rslt[5] = self.uint8_to_int8(rslt[5])
@@ -904,8 +898,43 @@ class DFRobot_bmm150_I2C(DFRobot_bmm150):
     @brief An example of an i2c interface module
   '''
   def __init__(self, bus, addr):
+    self.bus = bus
     self.__addr = addr
-    super(DFRobot_bmm150_I2C, self).__init__(bus)
+    if self.is_raspberrypi():
+      import smbus
+      self.i2cbus = smbus.SMBus(bus)
+    else:
+      self.test_platform()
+    super(DFRobot_bmm150_I2C, self).__init__(self.bus)
+
+  def is_raspberrypi(self):
+    import io
+    try:
+        with io.open('/sys/firmware/devicetree/base/model', 'r') as m:
+            if 'raspberry pi' in m.read().lower(): return True
+    except Exception: pass
+    return False
+
+  def test_platform(self):
+    import re
+    import platform
+    import subprocess
+    where = platform.system()
+    if where == "Linux":
+        p = subprocess.Popen(['i2cdetect', '-l'], stdout=subprocess.PIPE,)
+        for i in range(0, 25):
+            line = str(p.stdout.readline())
+            s = re.search("i2c-tiny-usb", line)
+            if s:
+                line = re.split(r'\W+', line)
+                bus = int(line[2])
+        import smbus
+        self.i2cbus = smbus.SMBus(bus)
+    elif where == "Windows":
+        from i2c_mp_usb import I2C_MP_USB as SMBus
+        self.i2cbus = SMBus()
+    else:
+        print("Platform not supported")  
 
   def write_reg(self, reg, data):
     '''!
@@ -913,13 +942,14 @@ class DFRobot_bmm150_I2C(DFRobot_bmm150):
       @param reg register address
       @param data written data
     '''
+    if type(data) == bytearray:
+      data = list(data)
     while 1:
       try:
         self.i2cbus.write_i2c_block_data(self.__addr, reg, data)
         return
       except:
-        print("please check connect!")
-        #os.system('i2cdetect -y 1')
+        print("please check connect w!")
         time.sleep(1)
         return
   
@@ -932,16 +962,20 @@ class DFRobot_bmm150_I2C(DFRobot_bmm150):
     while 1:
       try:
         rslt = self.i2cbus.read_i2c_block_data(self.__addr, reg, len)
-        #print rslt
         return rslt
       except:
         time.sleep(1)
-        print("please check connect!")
+        print("please check connect r!")
         
         
 
 class DFRobot_bmm150_SPI(DFRobot_bmm150):
   def __init__(self, cs, bus = 0, dev = 0, speed = 1000000):
+    import spidev
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
+
     self.__cs = cs
     GPIO.setup(self.__cs, GPIO.OUT)
     GPIO.output(self.__cs, GPIO.LOW)
