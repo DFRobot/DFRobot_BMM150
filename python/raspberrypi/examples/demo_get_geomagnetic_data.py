@@ -83,13 +83,20 @@ def setup():
   
 def loop():
   geomagnetic = bmm150.get_geomagnetic()
-  # print("mag x = %d ut"%geomagnetic[0]) 
-  # print("mag y = %d ut"%geomagnetic[1]) 
-  # print("mag z = %d ut"%geomagnetic[2])
+  print("mag x = %d ut"%geomagnetic[0])
+  print("mag y = %d ut"%geomagnetic[1])
+  print("mag z = %d ut"%geomagnetic[2])
+  # get float type data
+  #geomagnetic = bmm150.get_f_geomagnetic()
+  #print("---------------------------------")
+  #print("mag x = %.2f ut"%geomagnetic[0])
+  #print("mag y = %.2f ut"%geomagnetic[1])
+  #print("mag z = %.2f ut"%geomagnetic[2])
   degree = bmm150.get_compass_degree()
-  print("the angle between the pointing direction and north (counterclockwise) is: %.2f  \r"%degree, end='')
-  # print("")
-  time.sleep(0.3)
+  print("---------------------------------")
+  print("the angle between the pointing direction and north (counterclockwise) is: %.2f "%degree) 
+  #print("")
+  time.sleep(0.1)
 
 if __name__ == "__main__":
   setup()

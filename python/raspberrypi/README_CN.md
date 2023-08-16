@@ -119,6 +119,16 @@ python3 data_ready_interrupt.py
   '''
   def get_geomagnetic(self):
 
+
+  '''!
+    @brief 获取x y z 三轴的地磁数据 浮点型数据
+    @return x y z 三轴的地磁数据的列表 单位：微特斯拉（uT）
+    @n      [0] x 轴地磁的数据
+    @n      [1] y 轴地磁的数据
+    @n      [2] z 轴地磁的数据
+  '''
+  def get_f_geomagnetic(self):
+
   '''!
     @brief 获取罗盘方向
     @return 罗盘方向 (0° - 360°)  0° = North, 90° = East, 180° = South, 270° = West.

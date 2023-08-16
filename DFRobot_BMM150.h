@@ -420,6 +420,11 @@ protected:
    */
   int16_t compensateZ(int16_t magDataZ ,uint16_t dataRhall);
 
+
+
+float fcompensateX(int16_t magDataX, uint16_t dataRhall);
+float fcompensateY(int16_t magDataY, uint16_t dataRhall);
+float fcompensateZ(int16_t magDataZ, uint16_t dataRhall);
   /**
    * @fn normalSelfTest
    * @brief Normal self test mode, get the test results
