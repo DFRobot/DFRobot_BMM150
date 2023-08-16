@@ -321,6 +321,7 @@ $> python get_all_state.py
 
 ## History
 
+- 2023/08/16 - Version 1.0.1 released.
 - 2021/04/21 - Version 1.0.0 released.
 
 ## Credits

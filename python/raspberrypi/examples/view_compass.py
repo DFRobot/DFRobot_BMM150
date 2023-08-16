@@ -13,7 +13,7 @@ ADDRESS_0       = 0x10   # (CSB:0 SDO:0)
 ADDRESS_1       = 0x11   # (CSB:0 SDO:1)
 ADDRESS_2       = 0x12   # (CSB:1 SDO:0)
 ADDRESS_3       = 0x13   # (CSB:1 SDO:1) default i2c address
-bmm150 = DFRobot_bmm150_I2C(I2C_BUS, ADDRESS_0)
+bmm150 = DFRobot_bmm150_I2C(I2C_BUS, ADDRESS_3)
 
 def setup():
   while bmm150.ERROR == bmm150.sensor_init():

@@ -239,6 +239,7 @@ Download the zip file first to use this library and uncompress it to a folder na
 
 ## History
 
+- 2021/08/16 - Version 1.0.1 released.
 - 2021/04/21 - Version 1.0.0 released.
 
 ## Credits
