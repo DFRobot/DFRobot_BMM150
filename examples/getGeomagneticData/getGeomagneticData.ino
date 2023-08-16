@@ -100,6 +100,12 @@ void loop()
   Serial.print("mag x = "); Serial.print(magData.x); Serial.println(" uT");
   Serial.print("mag y = "); Serial.print(magData.y); Serial.println(" uT");
   Serial.print("mag z = "); Serial.print(magData.z); Serial.println(" uT");
+
+  // float type data
+  //Serial.print("mag x = "); Serial.print(magData.xx); Serial.println(" uT");
+  //Serial.print("mag y = "); Serial.print(magData.yy); Serial.println(" uT");
+  //Serial.print("mag z = "); Serial.print(magData.zz); Serial.println(" uT");
+
   float compassDegree = bmm150.getCompassDegree();
   Serial.print("the angle between the pointing direction and north (counterclockwise) is:");
   Serial.println(compassDegree);

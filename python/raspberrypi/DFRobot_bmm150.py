@@ -19,8 +19,6 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-
-
 class trim_register:
   def __init__(self):
     self.dig_x1   = 0
@@ -460,6 +458,27 @@ class DFRobot_bmm150(object):
     rslt[2] = self.compenstate_z(_geomagnetic.z, _geomagnetic.r)
     return rslt
 
+  def get_f_geomagnetic(self):
+    '''!
+      @brief Get the geomagnetic data of 3 axis (x, y, z)
+      @return The list of the geomagnetic data at 3 axis (x, y, z) unit: uT
+      @       [0] The geomagnetic data at x-axis
+      @       [1] The geomagnetic data at y-axis
+      @       [2] The geomagnetic data at z-axis
+    '''
+    rslt = self.read_reg(self.REG_DATA_X_LSB, 8)
+    rslt[1] = self.uint8_to_int8(rslt[1])
+    rslt[3] = self.uint8_to_int8(rslt[3])
+    rslt[5] = self.uint8_to_int8(rslt[5])
+    _geomagnetic.x = ((rslt[0]&0xF8) >> 3)  | int(rslt[1]*32)
+    _geomagnetic.y = ((rslt[2]&0xF8) >> 3)  | int(rslt[3]*32)
+    _geomagnetic.z = ((rslt[4]&0xFE) >> 1)  | int(rslt[5]*128)
+    _geomagnetic.r = ((rslt[6]&0xFC) >> 2)  | int(rslt[7]*64)
+    rslt[0] = self.f_compenstate_x(_geomagnetic.x, _geomagnetic.r)
+    rslt[1] = self.f_compenstate_y(_geomagnetic.y, _geomagnetic.r)
+    rslt[2] = self.f_compenstate_z(_geomagnetic.z, _geomagnetic.r)
+    return rslt
+  
   def get_compass_degree(self):
     '''!
       @brief Get compass degree
@@ -499,8 +518,8 @@ class DFRobot_bmm150(object):
       else:
         process_comp_x0 = 0
       if process_comp_x0 != 0:
-        process_comp_x1 = int(_trim_data.dig_xyz1*16384)
-        process_comp_x2 = int(process_comp_x1/process_comp_x0 - 0x4000)
+        process_comp_x1 = int(_trim_data.dig_xyz1*16384/process_comp_x0)
+        process_comp_x2 = int(process_comp_x1 - 0x4000)
         retval = process_comp_x2
         process_comp_x3 = retval*retval
         process_comp_x4 = _trim_data.dig_xy2*(process_comp_x3/128)
@@ -513,7 +532,7 @@ class DFRobot_bmm150(object):
         retval = process_comp_x10/8192
         retval = (retval + _trim_data.dig_x1*8)/16
       else:
-        retval = -32368
+        retval = -32768
     else:
       retval = -32768
     return retval
@@ -546,7 +565,7 @@ class DFRobot_bmm150(object):
         retval = process_comp_y9/8192
         retval = (retval + _trim_data.dig_y1*8)/16
       else:
-        retval = -32368
+        retval = -32768
     else:
       retval = -32768
     return retval
@@ -558,7 +577,7 @@ class DFRobot_bmm150(object):
       @param  data_r       The compensated data
       @return retval       The calibrated geomagnetic data
     '''
-    if data_z != -16348:
+    if data_z != -16384:
       if _trim_data.dig_z2 != 0 and _trim_data.dig_z1 != 0 and _trim_data.dig_xyz1 != 0 and data_r != 0:
         process_comp_z0 = data_r - _trim_data.dig_xyz1
         process_comp_z1 = (_trim_data.dig_z3*process_comp_z0)/4
@@ -567,14 +586,79 @@ class DFRobot_bmm150(object):
         process_comp_z4 = (process_comp_z3+32768)/65536
         retval = (process_comp_z2 - process_comp_z1)/(_trim_data.dig_z2+process_comp_z4)
         if retval > 32767:
-          retval = 32367
-        elif retval < -32367:
-          retval = -32367
+          retval = 32767
+        elif retval < -32767:
+          retval = -32767
         retval = retval/16
       else:
         retval = -32768
     else:
       retval = -32768
+    return retval
+
+  def f_compenstate_x(self, data_x, data_r):
+    '''!
+      @brief Compensate the geomagnetic data at x-axis
+      @param  data_x       The raw geomagnetic data
+      @param  data_r       The compensated data
+      @return retval       The calibrated geomagnetic data
+    '''
+    if data_x != -4096:
+      if _trim_data.dig_xyz1 != 0 and data_r != 0:
+        process_comp_x0 = float(_trim_data.dig_xyz1)*16384.0 / float(data_r)
+        retval = float(process_comp_x0) - 16384.0
+        process_comp_x1 = float(_trim_data.dig_xy2) * float(retval*retval / 268435456.0)
+        process_comp_x2 = process_comp_x1 + retval * (float(_trim_data.dig_xy1)/16384.0)
+        process_comp_x3 = float(_trim_data.dig_x2) + 160.0
+        process_comp_x4 = data_x * ((process_comp_x2 + 256.0) * process_comp_x3)
+        retval = (process_comp_x4/8192.0 + (float(_trim_data.dig_x1)*8.0)) / 16.0
+      else:
+       retval = -32768
+    else:
+      retval = -32768
+    return retval
+
+  def f_compenstate_y(self, data_y, data_r):
+    '''!
+      @brief Compensate the geomagnetic data at y-axis
+      @param  data_y       The raw geomagnetic data
+      @param  data_r       The compensated data
+      @return retval       The calibrated geomagnetic data
+    '''
+    if data_y != -4096:
+      if _trim_data.dig_xyz1 != 0 and data_r != 0:
+        process_comp_y0 = float(_trim_data.dig_xyz1)*16384.0 / float(data_r)
+        retval = float(process_comp_y0) - 16384.0
+        process_comp_y1 = float(_trim_data.dig_xy2)* (retval*retval / 268435456.0)
+        process_comp_y2 = process_comp_y1 + retval* (float(_trim_data.dig_xy1)/16384.0)
+        process_comp_y3 = float(_trim_data.dig_x2) + 160.0
+        process_comp_y4 = data_y * ((process_comp_y2 + 256.0) * process_comp_y3)
+        retval = (process_comp_y4 / 8192.0 + (float(_trim_data.dig_x1)*8.0))/16.0
+      else:
+       retval = -32768
+    else:
+      retval = -32768
+    return retval
+  def f_compenstate_z(self, data_z, data_r):
+    '''!
+      @brief Compensate the geomagnetic data at z-axis
+      @param  data_z       The raw geomagnetic data
+      @param  data_r       The compensated data
+      @return retval       The calibrated geomagnetic data
+    '''
+    if data_z != -16384:
+      if _trim_data.dig_z2 != 0 and _trim_data.dig_z1 != 0 and _trim_data.dig_xyz1 != 0 and data_r != 0:
+        process_comp_z0 = float(data_z) - float(_trim_data.dig_z4)
+        process_comp_z1 = float(data_r) - float(_trim_data.dig_xyz1)
+        process_comp_z2 = float(_trim_data.dig_z3) * process_comp_z1
+        process_comp_z3 = float(_trim_data.dig_z1) * float(data_r) / 32768.0
+        process_comp_z4 = float(_trim_data.dig_z2) + process_comp_z3
+        process_comp_z5 = process_comp_z0 * 131072.0 - process_comp_z2
+        retval = (process_comp_z5 / (process_comp_z4 * 4.0)) / 16.0
+      else:
+       retval = -16384
+    else:
+      retval = -16384
     return retval
 
   def set_data_ready_pin(self, modes, polarity):
@@ -877,7 +961,7 @@ class DFRobot_bmm150(object):
     if channel_x == self.HIGH_INTERRUPT_X_DISABLE:
       self.__txbuf[0] = self.__txbuf[0] | 0x20
     else:
-      self.__txbuf[0] = self.__txbuf[0] & 0xDf    
+      self.__txbuf[0] = self.__txbuf[0] & 0xDf
     
     self.write_reg(self.REG_INT_CONFIG ,self.__txbuf)
     self.set_interrupt_pin(self.ENABLE_INTERRUPT_PIN, polarity)

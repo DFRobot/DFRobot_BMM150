@@ -483,6 +483,9 @@ typedef struct{
   int16_t x; /**< compensated mag X data */
   int16_t y; /**< compensated mag Y data */
   int16_t z; /**< compensated mag Z data */
+  float xx;
+  float yy;
+  float zz;
 }sBmm150MagData_t;
 
 typedef struct{

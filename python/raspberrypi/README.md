@@ -163,6 +163,15 @@ $> python get_all_state.py
   def get_geomagnetic(self):
 
   '''!
+    @brief Get the geomagnetic data of 3 axis (x, y, z)
+    @return The list of the geomagnetic data at 3 axis (x, y, z) unit: uT
+    @       [0] The geomagnetic data at x-axis (float)
+    @       [1] The geomagnetic data at y-axis (float)
+    @       [2] The geomagnetic data at z-axis (float)
+  '''
+  def get_f_geomagnetic(self):
+
+  '''!
     @brief Get compass degree
     @return Compass degree (0° - 360°)  0° = North, 90° = East, 180° = South, 270° = West.
   '''

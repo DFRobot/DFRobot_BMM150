@@ -20,7 +20,6 @@ DFRobot_BMM150::~DFRobot_BMM150()
 bool DFRobot_BMM150::sensorInit()
 {
   uint8_t chipID;
-  int8_t  rslt    = 0;
   /* Power up the sensor from suspend to sleep mode */
   setPowerControlBit(BMM150_POWER_CNTRL_DISABLE);
   setPowerControlBit(BMM150_POWER_CNTRL_ENABLE);
@@ -212,6 +211,10 @@ sBmm150MagData_t DFRobot_BMM150::getGeomagneticData(void)
   magData.x = compensateX(rawMagData.rawDataX, rawMagData.rawDataR);
   magData.y = compensateY(rawMagData.rawDataY, rawMagData.rawDataR);
   magData.z = compensateZ(rawMagData.rawDataZ, rawMagData.rawDataR);
+
+  magData.xx = fcompensateX(rawMagData.rawDataX, rawMagData.rawDataR);
+  magData.yy = fcompensateY(rawMagData.rawDataY, rawMagData.rawDataR);
+  magData.zz = fcompensateZ(rawMagData.rawDataZ, rawMagData.rawDataR);
   return magData;
 }
 
@@ -260,7 +263,6 @@ bool DFRobot_BMM150::getDataReadyState(void)
 void DFRobot_BMM150::setMeasurementXYZ(uint8_t channelX, uint8_t channelY ,uint8_t channelZ)
 {
   uint8_t regData = 0;
-  int8_t  rslt;
   getReg(BMM150_REG_AXES_ENABLE, &regData, 1);
   if(channelX == MEASUREMENT_X_DISABLE){
     regData |= 0x08;
@@ -364,9 +366,9 @@ void DFRobot_BMM150::setThresholdInterrupt(uint8_t modes, uint8_t channelX, uint
 {
   if(modes == LOW_THRESHOLD_INTERRUPT){
     __thresholdMode = LOW_THRESHOLD_INTERRUPT;
-    setLowThresholdInterrupt(channelX, channelX, channelY, threshold, polarity);
+    setLowThresholdInterrupt(channelX, channelY, channelZ, threshold, polarity);
   }else{
-    setHighThresholdInterrupt(channelX, channelX, channelY, threshold, polarity);
+    setHighThresholdInterrupt(channelX, channelY, channelZ, threshold, polarity);
     __thresholdMode = HIGH_THRESHOLD_INTERRUPT;
   }
 }
@@ -486,7 +488,6 @@ void DFRobot_BMM150::setInterrputPin(uint8_t modes, uint8_t polarity)
 void DFRobot_BMM150::setInterruputLatch(uint8_t modes)
 {
   uint8_t regData = 0;
-  int8_t  rslt;
   getReg(BMM150_REG_AXES_ENABLE, &regData, 1);
   if(modes == INTERRUPUT_LATCH_DISABLE){
     regData &= 0xFD;
@@ -606,9 +607,8 @@ int16_t DFRobot_BMM150::compensateX(int16_t magDataX, uint16_t dataRhall)
       processCompX0 = 0;
     }
     if (processCompX0 != 0){
-      /* Processing compensation equations */
-      processCompX1 = ((int32_t)_trimData.digXYZ1) * 16384;
-      processCompX2 = ((uint16_t)(processCompX1 / processCompX0)) - ((uint16_t)0x4000);
+      processCompX1 = ((int32_t)_trimData.digXYZ1) * 16384 / processCompX0;
+      processCompX2 = ((uint16_t)(processCompX1)) - ((uint16_t)0x4000);
       retval = ((int16_t)processCompX2);
       processCompX3 = (((int32_t)retval) * ((int32_t)retval));
       processCompX4 = (((int32_t)_trimData.digXY2) * (processCompX3 / 128));
@@ -701,9 +701,84 @@ int16_t DFRobot_BMM150::compensateZ(int16_t magDataZ, uint16_t dataRhall)
   return (int16_t)retval;
 }
 
+
+float DFRobot_BMM150::fcompensateX(int16_t magDataX, uint16_t dataRhall)
+{
+  float retval = 0;
+  float process_comp_x0;
+  float process_comp_x1;
+  float process_comp_x2;
+  float process_comp_x3;
+  float process_comp_x4;
+
+  /* Overflow condition check */
+  if ((magDataX != BMM150_OVERFLOW_ADCVAL_XYAXES_FLIP) && (dataRhall != 0) && (_trimData.digXYZ1 != 0)) {
+      /*Processing compensation equations*/
+      process_comp_x0 = (((float)_trimData.digXYZ1) * 16384.0f / dataRhall);
+      retval = (process_comp_x0 - 16384.0f);
+      process_comp_x1 = ((float)_trimData.digXY2) * (retval * retval / 268435456.0f);
+      process_comp_x2 = process_comp_x1 + retval * ((float)_trimData.digXY1) / 16384.0f;
+      process_comp_x3 = ((float)_trimData.digX2) + 160.0f;
+      process_comp_x4 = magDataX * ((process_comp_x2 + 256.0f) * process_comp_x3);
+      retval = ((process_comp_x4 / 8192.0f) + (((float)_trimData.digX1) * 8.0f)) / 16.0f;
+  } else {
+    retval = (float)BMM150_OVERFLOW_OUTPUT;
+  }
+
+  return retval;
+}
+
+float DFRobot_BMM150::fcompensateY(int16_t magDataY, uint16_t dataRhall)
+{
+  float retval = 0;
+  float process_comp_y0;
+  float process_comp_y1;
+  float process_comp_y2;
+  float process_comp_y3;
+  float process_comp_y4;
+
+  /* Overflow condition check */
+  if ((magDataY != BMM150_OVERFLOW_ADCVAL_XYAXES_FLIP)  && (dataRhall != 0) && (_trimData.digXYZ1 != 0)) {
+      /*Processing compensation equations*/
+      process_comp_y0 = ((float)_trimData.digXYZ1) * 16384.0f / dataRhall;
+      retval = process_comp_y0 - 16384.0f;
+      process_comp_y1 = ((float)_trimData.digXY2) * (retval * retval / 268435456.0f);
+      process_comp_y2 = process_comp_y1 + retval * ((float)_trimData.digXY1) / 16384.0f;
+      process_comp_y3 = ((float)_trimData.digY2) + 160.0f;
+      process_comp_y4 = magDataY * (((process_comp_y2) + 256.0f) * process_comp_y3);
+      retval = ((process_comp_y4 / 8192.0f) + (((float)_trimData.digY1) * 8.0f)) / 16.0f;
+  } else {
+    retval = (float)BMM150_OVERFLOW_OUTPUT;
+  }
+
+  return retval;
+}
+
+float DFRobot_BMM150::fcompensateZ(int16_t magDataZ, uint16_t dataRhall)
+{
+    float retval = 0;
+    float process_comp_z0;
+    float process_comp_z1;
+    float process_comp_z2;
+    float process_comp_z3;
+    float process_comp_z4;
+    float process_comp_z5;
+    if (magDataZ != BMM150_OVERFLOW_ADCVAL_ZAXIS_HALL && (_trimData.digZ2 != 0) && (_trimData.digZ1 != 0) && (dataRhall != 0) &&(_trimData.digXYZ1 != 0)){
+      process_comp_z0 = ((float)magDataZ) - ((float)_trimData.digZ4);
+      process_comp_z1 = ((float)dataRhall) - ((float)_trimData.digXYZ1);
+      process_comp_z2 = (((float)_trimData.digZ3) * process_comp_z1);
+      process_comp_z3 = ((float)_trimData.digZ1) * ((float)dataRhall) / 32768.0f;
+      process_comp_z4 = ((float)_trimData.digZ2) + process_comp_z3;
+      process_comp_z5 = (process_comp_z0 * 131072.0f) - process_comp_z2;
+      retval = (process_comp_z5 / ((process_comp_z4) * 4.0f)) / 16.0f;
+    }else{
+      retval = (float)BMM150_OVERFLOW_OUTPUT;
+    }
+    return retval;
+}
+
 int8_t DFRobot_BMM150::normalSelfTest(void)
 {
-  int8_t rslt;
   uint8_t selfTestBit;
   uint8_t regData;
   uint8_t selfTestValue = 0x01;
@@ -773,7 +848,6 @@ int8_t DFRobot_BMM150::validatNormalSelfTest(void)
 int8_t DFRobot_BMM150::advSelfTest(void)
 {
   int8_t rslt;
-  uint8_t selfTestCurrent;
   int16_t postiveDataZ;
   int16_t negativeDataZ;
 
@@ -850,7 +924,6 @@ void DFRobot_BMM150::setDataOverrun(uint8_t modes)
 bool DFRobot_BMM150::getDataOverrunState(void)
 {
   uint8_t regData = 0;
-  int8_t  rslt;
   getReg(BMM150_REG_INT_CONFIG, &regData, 1);
   if(regData|0x80){
     return true;
@@ -862,7 +935,6 @@ bool DFRobot_BMM150::getDataOverrunState(void)
 void DFRobot_BMM150::setOverflowPin(uint8_t modes)
 {
   uint8_t regData = 0;
-  int8_t  rslt;
   getReg(BMM150_REG_INT_CONFIG, &regData, 1);
   if(modes == OVERFLOW_INT_DISABLE){
     regData &= 0xBF;
@@ -875,7 +947,6 @@ void DFRobot_BMM150::setOverflowPin(uint8_t modes)
 bool DFRobot_BMM150::getOverflowState(void)
 {
   uint8_t regData = 0;
-  int8_t  rslt;
   getReg(BMM150_REG_INT_CONFIG, &regData, 1);
   if(regData|0x40){
     return true;
